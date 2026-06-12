@@ -21,6 +21,10 @@ import streamlit as st
 warnings.filterwarnings("ignore")
 matplotlib.use("Agg")
 
+# 配置中文字体支持（Windows 下使用微软雅黑）
+plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "Arial Unicode MS"]
+plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
+
 
 # ============================================================
 # 页面配置
@@ -238,6 +242,12 @@ def diagnose(df: pd.DataFrame) -> dict:
             "unique": int(s.nunique(dropna=True)),
             "missing": int(s.isna().sum()),
         }
+        
+        # 检测单列重复（出现次数 >= 2 的值，不算缺失值）
+        value_counts = s.value_counts(dropna=True)
+        duplicate_values = value_counts[value_counts >= 2]
+        info["duplicate_count"] = int(duplicate_values.sum() - len(duplicate_values))  # 减去每个值的第一次出现
+        
         if pd.api.types.is_numeric_dtype(s):
             numeric_cols.append(col)
             info["min"] = float(s.min()) if not s.isna().all() else None
@@ -252,11 +262,15 @@ def diagnose(df: pd.DataFrame) -> dict:
             else:
                 outliers = 0
             info["outliers_iqr"] = outliers
+            # 计算该列总异常数（缺失值 + IQR异常值）
+            info["total_anomalies"] = info["missing"] + outliers
         elif pd.api.types.is_datetime64_any_dtype(s):
             info["min_date"] = s.min()
             info["max_date"] = s.max()
             # 无法解析的日期（转为 NaT）通常代表原数据中混杂了非法日期
             info["invalid_date"] = int(s.isna().sum())
+            # 计算该列总异常数（缺失值/无效日期）
+            info["total_anomalies"] = info["missing"]
         else:
             # 文本字段：检查前后空格 / 大小写不一致
             strip_issue = int(
@@ -270,6 +284,13 @@ def diagnose(df: pd.DataFrame) -> dict:
                     and x.upper() != x
                 ).sum()
             )
+            # 检测低频值（出现次数 <= 2 的值，可能是拼写错误或异常值）
+            rare_values = value_counts[value_counts <= 2]
+            info["rare_values_count"] = int(rare_values.sum())
+            if len(rare_values) > 0:
+                info["rare_values"] = rare_values.to_dict()
+            # 计算该列总异常数（缺失值 + 低频值）
+            info["total_anomalies"] = info["missing"] + info["rare_values_count"]
         col_stats[col] = info
     diag["col_stats"] = col_stats
     diag["numeric_cols"] = numeric_cols
@@ -378,11 +399,11 @@ with tab_diag:
             unsafe_allow_html=True,
         )
     with metric_cols[3]:
-        outlier_total = sum(
-            s.get("outliers_iqr", 0) for s in diag["col_stats"].values()
+        total_anomalies = sum(
+            s.get("total_anomalies", 0) for s in diag["col_stats"].values()
         )
         st.markdown(
-            f'<div class="big-number">{outlier_total}</div><div class="metric-label">数值异常值</div>',
+            f'<div class="big-number">{total_anomalies}</div><div class="metric-label">总异常数（含缺失）</div>',
             unsafe_allow_html=True,
         )
 
@@ -394,18 +415,23 @@ with tab_diag:
         )
         # 采样显示避免图片过大
         sample_n = min(len(missing_df), 500)
-        fig_hm, ax_hm = plt.subplots(figsize=(max(8, len(df_clean.columns) * 0.6), 4))
-        sns.heatmap(
-            missing_df.sample(sample_n, random_state=0).T if len(missing_df) > sample_n else missing_df.T,
-            cbar=False,
-            cmap="Reds",
-            yticklabels=True,
-            xticklabels=False,
-            ax=ax_hm,
+        if len(missing_df) > sample_n:
+            missing_df = missing_df.sample(sample_n, random_state=0)
+        
+        # 使用 plotly 绘制热力图，更好地支持中文
+        fig_hm = px.imshow(
+            missing_df.T,
+            labels=dict(x="行（采样）", y="列", color="是否缺失"),
+            color_continuous_scale=[[0, "#F0F2F6"], [1, "#FF4B4B"]],
+            aspect="auto",
+            height=max(300, len(df_clean.columns) * 25),
         )
-        ax_hm.set_title(f"缺失值分布（红色 = 缺失）| 采样 {sample_n} 行")
-        st.pyplot(fig_hm, clear_figure=True)
-        plt.close(fig_hm)
+        fig_hm.update_layout(
+            margin=dict(l=10, r=10, t=30, b=10),
+            coloraxis_showscale=False,
+            title_text=f"缺失值分布（红色 = 缺失）| 采样 {sample_n} 行",
+        )
+        st.plotly_chart(fig_hm, use_container_width=True)
 
     with col_b:
         st.markdown("**各列缺失比例**")
@@ -435,6 +461,10 @@ with tab_diag:
             tags += f'<span class="tag-warn">缺失 {info["missing"]}</span>'
         if info.get("outliers_iqr", 0) > 0:
             tags += f'<span class="tag-bad">异常 {info["outliers_iqr"]}</span>'
+        if info.get("rare_values_count", 0) > 0:
+            tags += f'<span class="tag-warn">低频 {info["rare_values_count"]}</span>'
+        if info.get("duplicate_count", 0) > 0:
+            tags += f'<span class="tag-warn">重复 {info["duplicate_count"]}</span>'
         if info.get("strip_issue", 0) > 0:
             tags += f'<span class="tag-warn">空格 {info["strip_issue"]}</span>'
         if info.get("mixed_case", 0) > 0:
@@ -447,6 +477,7 @@ with tab_diag:
             {
                 "列名": col,
                 "类型": info["dtype"],
+                "异常数": info.get("total_anomalies", 0),
                 "唯一值": info["unique"],
                 "问题标签": tags,
             }
