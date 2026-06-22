@@ -43,49 +43,123 @@ st.set_page_config(
 def apply_theme(mode: str):
     """自定义 light / dark 主题样式"""
     if mode == "dark":
-        bg = "#0E1117"
-        panel = "#262730"
-        text = "#FAFAFA"
-        subtext = "#B0B0B0"
+        bg = "#0D0D0D"
+        panel = "#1A1A1A"
+        panel_hover = "#252525"
+        text = "#FFFFFF"
+        text_secondary = "#E0E0E0"
+        text_muted = "#A0A0A0"
         accent = "#FF6B6B"
+        border = "#333333"
+        success = "#4CAF50"
+        warning = "#FF9800"
+        error = "#F44336"
     else:
         bg = "#FFFFFF"
-        panel = "#F0F2F6"
-        text = "#262730"
-        subtext = "#555555"
+        panel = "#F5F5F5"
+        panel_hover = "#EEEEEE"
+        text = "#1A1A1A"
+        text_secondary = "#424242"
+        text_muted = "#757575"
         accent = "#FF4B4B"
+        border = "#E0E0E0"
+        success = "#4CAF50"
+        warning = "#FF9800"
+        error = "#F44336"
 
     st.markdown(
         f"""
         <style>
+        /* 全局背景和文字 */
         .stApp {{ background-color: {bg}; color: {text}; }}
+        
+        /* 侧边栏 */
+        .css-1d391kg {{ background-color: {panel} !important; }}
+        .css-1d391kg p, .css-1d391kg li, .css-1d391kg h3, .css-1d391kg span {{ color: {text_secondary} !important; }}
+        
+        /* 页面标题 */
+        h1, h2, h3, h4, h5, h6 {{ color: {text} !important; }}
+        
+        /* 段落文字 */
+        p, li, span, label {{ color: {text_secondary} !important; }}
+        
+        /* 大数字 */
         .big-number {{
             font-size: 32px; font-weight: 700; color: {accent};
             text-align: center; padding: 10px;
         }}
-        .metric-label {{ text-align: center; color: {subtext}; font-size: 14px; }}
+        
+        /* 指标标签 */
+        .metric-label {{ text-align: center; color: {text_muted}; font-size: 14px; }}
+        
+        /* 章节标题 */
         .section-title {{
             font-size: 22px; font-weight: 600;
             margin: 20px 0 10px 0; color: {accent};
-            border-bottom: 2px solid {panel}; padding-bottom: 6px;
+            border-bottom: 2px solid {border}; padding-bottom: 6px;
         }}
+        
+        /* 信息卡片 */
         .info-card {{
             background-color: {panel}; border-radius: 8px;
             padding: 14px; margin: 6px 0;
         }}
+        
+        /* 标签样式 */
         .tag-ok {{
-            display:inline-block; background:#2E7D32; color:white;
+            display:inline-block; background:{success}; color:white;
             padding:2px 10px; border-radius:12px; font-size:12px; margin-right:6px;
         }}
         .tag-warn {{
-            display:inline-block; background:#F57C00; color:white;
+            display:inline-block; background:{warning}; color:white;
             padding:2px 10px; border-radius:12px; font-size:12px; margin-right:6px;
         }}
         .tag-bad {{
-            display:inline-block; background:#C62828; color:white;
+            display:inline-block; background:{error}; color:white;
             padding:2px 10px; border-radius:12px; font-size:12px; margin-right:6px;
         }}
-        h1, h2, h3 {{ color: {text} !important; }}
+        
+        /* 数据表格 */
+        .dataframe {{ background-color: {panel} !important; }}
+        .dataframe th {{ background-color: {panel_hover} !important; color: {text} !important; border-color: {border} !important; }}
+        .dataframe td {{ color: {text_secondary} !important; border-color: {border} !important; }}
+        
+        /* Tab 标签 */
+        .css-15tx938 {{ color: {text_muted} !important; }}
+        .css-15tx938[aria-selected="true"] {{ color: {text} !important; background-color: {panel_hover} !important; }}
+        
+        /* 按钮 */
+        .stButton>button {{ color: {text} !important; background-color: {panel} !important; border-color: {border} !important; }}
+        .stButton>button:hover {{ background-color: {panel_hover} !important; }}
+        .stButton>button[type="primary"] {{ background-color: {accent} !important; color: white !important; }}
+        
+        /* 选择框 */
+        .stSelectbox label, .stRadio label, .stCheckbox label {{ color: {text_secondary} !important; }}
+        .css-13sdm1b {{ background-color: {panel} !important; color: {text} !important; border-color: {border} !important; }}
+        
+        /* 输入框 */
+        .stTextInput>div>div>input, .stNumberInput>div>div>input {{ color: {text} !important; background-color: {panel} !important; }}
+        .stTextInput label, .stNumberInput label {{ color: {text_secondary} !important; }}
+        
+        /* 滑块 */
+        .css-1iyq7zh {{ color: {text_muted} !important; }}
+        
+        /* 分割线 */
+        .css-1r4sjp {{ background-color: {border} !important; }}
+        
+        /* 警告/成功/错误信息 */
+        .stAlert {{ background-color: {panel} !important; border-color: {border} !important; }}
+        .stAlert p {{ color: {text_secondary} !important; }}
+        
+        /* 进度条 */
+        .stProgress>div>div {{ background-color: {accent} !important; }}
+        
+        /* 文件上传 */
+        .stFileUploader label {{ color: {text_secondary} !important; }}
+        .css-1cypcdb {{ border-color: {border} !important; }}
+        
+        /* 时间显示 */
+        .css-12w0qpk {{ color: {text_muted} !important; }}
         </style>
         """,
         unsafe_allow_html=True,
